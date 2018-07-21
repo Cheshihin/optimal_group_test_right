@@ -1,0 +1,11 @@
+.idea
+*.log
+/*.sql
+Thumbs.db
+.DS_Store
+._.DS_Store
+bitrix/php_interface/dbconn.php
+bitrix/backup/
+bitrix/cache
+bitrix/managed_cache
+bitrix/stack_cache
