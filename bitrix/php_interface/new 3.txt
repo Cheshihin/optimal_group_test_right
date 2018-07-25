@@ -1,0 +1,399 @@
+<?
+
+CModule::IncludeModule("iblock");
+
+class CurrencyActions{
+	public $fill_date_from;
+	public $fill_date_to;
+	public $fill_from_record_number;
+	public $fill_record_count;
+	public $currency_XML_url;
+	public $update_mode;
+	private $xml_data;
+	private $all_xml_data_parsed;
+	private $XML;
+	public $partialPageCount;
+	
+	function __construct($currency_XML_url="https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml", $need_parse_xml_data=false){
+		if($currency_XML_url && $currency_XML_url != ''){
+			$this->currency_XML_url = $currency_XML_url;
+		} else {
+			$this->currency_XML_url = "https://www.ecb.europa.eu/stats/eurofxref/eurofxref-hist.xml";
+		}
+		$this->fill_date_from = null;
+		$this->fill_date_to = null;
+		$this->fill_from_record_number = 1;
+		$this->fill_record_count = null;
+		$this->update_mode = false;
+		
+		
+		
+		$this->XML = simplexml_load_file($this->currency_XML_url);
+		
+		
+		
+		
+		
+		$this->partialPageCount = 100;
+		
+		
+		if($need_parse_xml_data){
+		
+			$this->xml_data = array();
+		
+			foreach($this->XML->Cube->Cube as $time){
+				$curr_date = $this->getRightDateString1($time['time']);
+				$this->xml_data[$curr_date] = array();
+				foreach($time->Cube as $cube){
+					$this->xml_data[$curr_date][] = array('CURRENCY'=>$cube['currency'],'VALUE'=>$cube['rate']);
+				}
+			}
+			$this->all_xml_data_parsed = true;
+		} else {
+			$this->xml_data = null;
+			$this->all_xml_data_parsed = false;
+		}		
+	}
+	
+	private function parse_xml_data(){
+		$this->xml_data = array();
+		
+		if($this->fill_from_record_number !== null){
+			$curr_record_number = 1;
+			$curr_count = 0;
+		} else {
+			$curr_date = null;
+		}
+		
+		$no_parsed_data_exists = false;
+		
+		
+		if($this->fill_from_record_number !== null){
+				$itter_count = 0;
+				foreach($this->XML->Cube->Cube as $time){
+					
+						
+					
+						if(($this->fill_from_record_number !== null && $curr_record_number < $this->fill_from_record_number) || ($this->fill_record_count !== null || $curr_count > $this->fill_record_count) && $itter_count<=30){
+							if($this->fill_record_count !== null && $curr_count > $this->fill_record_count){
+								$no_parsed_data_exists = true;
+								break;
+							} else {
+								$no_parsed_data_exists = true;
+								$curr_record_number++;
+								continue;
+							}
+						}	
+				
+							$curr_date = $this->getRightDateString1($time['time']);
+							
+							
+							
+							$this->xml_data[$curr_date] = array();
+							foreach($time->Cube as $cube){
+								
+								$this->xml_data[$curr_date][] = array('CURRENCY'=>$cube['currency'],'DATE_UNIX'=>strtotime($this->getRightDateString3($time['time'])),'VALUE'=>$cube['rate']);
+							}
+							
+							$curr_count++;
+							$curr_record_number++;
+							$itter_count++;
+						
+						
+						
+				}
+				
+				var_dump(count($this->xml_data[$curr_date]));
+		} else if($this->fill_date_from !== null || $this->fill_date_to !== null){
+				
+				if($this->fill_date_to !== null){
+					$date_to = strtotime($this->getRightDateString3($this->fill_date_to));
+				} else {
+					$date_to = null;
+				}
+				
+				if($this->fill_date_from !== null){
+					$date_from = strtotime($this->getRightDateString3($this->fill_date_from));
+				} else {
+					$date_from = null;
+				}
+							
+				foreach($this->XML->Cube->Cube as $time){
+					
+						if($this->fill_date_to !== null && strtotime($this->getRightDateString3($time['time']))>$date_to){
+							$no_parsed_data_exists = true;
+							break;
+						}
+					
+						if(($this->fill_date_from === null || strtotime($this->getRightDateString3($time['time']))>=$date_from) &&
+						($this->fill_date_to === null || strtotime($this->getRightDateString3($time['time']))<=$date_to)){
+				
+							$curr_date = $this->getRightDateString1($time['time']);
+							$this->xml_data[$curr_date] = array();
+							foreach($time->Cube as $cube){
+								$this->xml_data[$curr_date][] = array('CURRENCY'=>$cube['currency'],'DATE_UNIX'=>strtotime($this->getRightDateString3($time['time'])),'VALUE'=>$cube['rate']);
+							}
+						
+						} else {
+							$no_parsed_data_exists = true;
+						}
+				}
+		
+		} else {
+			//foreach($this->XML->Cube->Cube as $time){
+					
+						foreach($this->XML->Cube->Cube as $time){
+					
+							
+					
+							
+				
+								$curr_date = $this->getRightDateString1($time['time']);
+								$this->xml_data[$curr_date] = array();
+								foreach($time->Cube as $cube){
+									
+									$this->xml_data[$curr_date][] = array('CURRENCY'=>$cube['currency'],'DATE_UNIX'=>strtotime($this->getRightDateString3($time['time'])),'VALUE'=>$cube['rate']);
+								}
+						
+							
+						}
+			//}
+		}
+		
+		if(!$no_parsed_data_exists){
+			$this->all_xml_data_parsed = true;
+		} else {
+			$this->all_xml_data_parsed = false;
+		}	
+	}
+	
+	private function getDataPage($page_number){
+		
+		$fromXML = array();
+		
+		
+		
+		
+		
+		$start_number = ($page_number - 1) * $this->partialPageCount + 1;
+		$end_number = $start_number + $this->partialPageCount - 1;
+		
+		
+		
+		$curr_number = 1;
+		
+		$min_date = -99999999999999999999;
+		$max_date = $min_date;
+		
+		
+		
+		$curr_number = 1;
+		
+		$total_count = 0;
+		
+		$records_are_over = false;
+		
+		$first_entering = true;
+		
+		foreach($this->xml_data as $date=>$date_item){
+			
+			$fromXML[$date] = array();
+			
+			foreach($date_item as $data_item){
+			
+				if($curr_number > $end_number){
+					break;
+				}
+			
+				if($curr_number < $start_number){
+					$curr_number++;
+					continue;
+				}
+				
+				if($first_entering){
+					
+					$min_date = $date_item['UNIX_DATE'];
+					$max_date = $date_item['UNIX_DATE'];
+					$first_entering = false;
+					
+				} else {	
+					if($date_item['UNIX_DATE'] < $min_date){
+						$min_date = $date_item['UNIX_DATE'];
+					}
+			
+					if($date_item['UNIX_DATE'] > $max_date){
+						$max_date = $date_item['UNIX_DATE'];
+					}
+				
+				}
+			
+				$fromXML[$date][] = $data_item;
+			
+				$curr_number++;
+				$total_count++;
+			}
+			
+		}
+		
+		if($curr_number > $this->partialPageCount){
+			$records_are_over = true;
+		}
+		
+		$total_count--;
+		
+		$min_date_str = $this->getRightDateStringFromUnixDate($min_date);
+		$max_date_str = $this->getRightDateStringFromUnixDate($max_date);
+		
+		
+		$arFilter = Array(
+			"IBLOCK_ID"=>4, 
+			//">DATE_ACTIVE_FROM"=>date($DB->DateFormatToPHP(CLang::GetDateFormat("SHORT")), mktime(0,0,0,1,1,2003)), 
+			"ACTIVE"=>"Y", 
+			">=PROPERTY_DATE_VALUE"=>$min_date_str,
+			"<=PROPERTY_DATE_VALUE"=>$max_date_str,
+			
+		);
+		
+		$res = CIBlockElement::GetList(array(), $arFilter, false, false, Array("IBLOCK_ID",'ID','PROPERTY_DATE'));
+		
+		$dates = array();
+		
+		while($ob = $res->GetNextElement())
+		{
+			$arProps = $ob->GetProperties();
+			$dates[$arProps["DATE"]['VALUE']] = true;
+		}
+		
+		$dates = array_keys($dates);
+		
+		$toUpdate = array();
+		
+		foreach($dates as $date){
+			if(isset($fromXML[$date])){
+				
+				if(!isset($toUpdate[$date])){
+					$toUpdate[$date] = $fromXML[$date];
+				}
+			}
+		}
+		
+		foreach($toUpdate as $k=>$item){
+			unset($fromXML[$k]);
+		}
+		
+		return array(
+			'ADDED'=>$fromXML,
+			'UPDATED'=>$toUpdate,
+			'TOTAL_COUNT'=>$total_count,
+			'END'=>$records_are_over
+		);
+		
+		
+	}
+	
+
+	private function getDateArray($date_string){
+		$exp = explode('-',$date_string);
+		return array(
+			'YEAR'=>$exp[0],
+			'MONTH'=>$exp[1],
+			'DAY'=>$exp[2]
+		);
+	}
+	
+	private function getRightDateStringFromUnixDate($unix_date, $format='d.m.Y'){
+		
+		$date = date_create();
+		
+
+		date_timestamp_set($date, $unix_date);
+		return date_format($date, $format);
+	}
+	
+	private function getRightDateString1($date_string){
+		$date_array = $this->getDateArray($date_string);
+		
+		return $date_array['DAY'].'.'.$date_array['MONTH'].'.'.$date_array['YEAR'];
+	}
+	
+	private function getRightDateString2($date_string){
+		
+		$date_array = $this->getDateArray($date_string);
+		
+		return $date_array['DAY'].'-'.$date_array['MONTH'].'-'.$date_array['YEAR'];
+	}
+	
+	private function getRightDateString3($date_string){
+		
+		$date_array = $this->getDateArray($date_string);
+		
+		return $date_array['MONTH'].'/'.$date_array['DAY'].'/'.$date_array['YEAR'];
+	}
+	
+	private function addCurrencyOnDate($date,$currency_name,$currency_value){
+		
+			$fields = array(
+				'IBLOCK_ID' => 4,
+				'NAME'=>$currency_name,
+				'ACTIVE'=>'Y',
+				'CODE'=>$currency_name.'-'.$date
+			);
+			$fields['PROPERTY_VALUES'] = array(
+				'DATE' => $date,
+				'VALUE' => $currency_value
+			);
+			
+			$el = new CIBlockElement;
+			
+			
+			if($ELEMENT_ID = $el->Add($fields)){
+				//echo "New ID: ".$ELEMENT_ID.'</br>';
+			}else
+				echo "Error: ".$el->LAST_ERROR.'</br>';
+			
+			
+		
+	}
+	
+	public function addCurrencyRates(){
+		$this->parse_xml_data();
+		
+		//var_dump(CLang::GetDateFormat("SHORT"));
+		
+		$curr_count = 0;
+		$curr_page_number = 1;
+		
+		$all = false;
+		$itter_count = 1;
+		while(($this->fill_record_count === null || $curr_count-1 < $this->fill_record_count) && (!$all) && $itter_count <= 100000){
+			$data_page = $this->getDataPage($curr_page_number);
+			$all = $data_page['END'];
+			
+			
+			
+			foreach($data_page['ADDED'] as $date=>$added){
+				
+				foreach($added as $added_item){
+				
+					if($this->fill_record_count !== null && $curr_count > $this->fill_record_count){
+						break;
+					}
+				
+				
+				
+					$this->addCurrencyOnDate($date,$added_item['CURRENCY'],$added_item['VALUE']);
+					$curr_count++;
+				}
+				
+					
+			}
+			
+			$curr_page_number++;
+			$itter_count++;
+		}
+		
+		echo "</br>СОЗДАНО: $curr_count элементов";
+	}
+}
+
+?>
