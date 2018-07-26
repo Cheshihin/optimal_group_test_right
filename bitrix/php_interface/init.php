@@ -586,9 +586,9 @@ class CurrencyActions{
 		
 		foreach($rate_data['ROWS'] as $k=>$row){
 			if($k < count($rate_data['ROWS']) - 1){
-				$html_str .= '<tr style="display:inline-block;margin-top:-1px;"><td style="font-style:italic;font-size:8px;text-align:center;width:100%;padding:3px;">'.$row.'</td></tr>';
+				$html_str .= '<tr style="display:inline-block;margin-top:-1px;"><td style="font-style:italic;font-size:8px;text-align:center;width:100%;">'.$row.'</td></tr>';
 			} else {
-				$html_str .= '<tr style="display:inline-block;margin-top:-1px;"><td style="font-style:italic;font-size:8px;text-align:center;width:100%;padding:3px;">'.$row.'</td></tr>';
+				$html_str .= '<tr style="display:inline-block;margin-top:-1px;"><td style="font-style:italic;font-size:8px;text-align:center;width:100%;">'.$row.'</td></tr>';
 			}
 		}
 		
@@ -597,17 +597,17 @@ class CurrencyActions{
 		
 		$html_str .= '</div>';
 		
-		$html_str .= '<div style="width:90%;max-width:100%;display:inline-block;height:400px;overflow-x:scroll;overflow-y:scroll;"><table style="border-collapse: collapse;"><thead style="display: block; overflow: auto;color: #fff;background: #000;"><tr>';
+		$html_str .= '<div style="width:90%;max-width:100%;display:inline-block;height:400px;overflow-x:scroll;overflow-y:scroll;"><table><tr>';
 		
 		foreach($rate_data['COLUMNS'] as $column){
-			$html_str .= '<th style="font-style:bold;font-size:10px;text-align:center;padding:5px;">'.$column.'</th>';
+			$html_str .= '<td style="font-style:bold;font-size:10px;padding:3px;text-align:center;">'.$column.'</td>';
 		}
 		
 		$html_str .= '</tr>';
 		
-		$html_str .= '</thead>';
 		
-		$html_str .= '<tbody style="display: block;height: 400px;background: pink;">';
+		
+		//$html_str .= '<tbody style="display: block;height: 400px;background: pink;">';
 		
 		foreach($rate_data['RESULT'] as $date=>$result_row){
 			//$html_str .= '<tr><td style="font-style:bold;font-size:8px;padding:3px;">'.$date.'</td>';
@@ -620,7 +620,7 @@ class CurrencyActions{
 		
 		//$html_str .= '</tr>';
 		
-		$html_str .= '</tbody>';
+		//$html_str .= '</tbody>';
 		
 		$html_str .= '</table></div>';
 		
